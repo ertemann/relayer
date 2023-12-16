@@ -107,6 +107,10 @@ func (pathEnd *pathEndRuntime) mergeMessageCache(messageCache IBCMessagesCache, 
 	channelHandshakeMessages := make(ChannelMessagesCache)
 	clientICQMessages := make(ClientICQMessagesCache)
 
+	for _, psc := range messageCache.PacketState {
+		psc.Prune(100) // Only keep most recent 100 packet states per channel
+	}
+
 	for ch, pmc := range messageCache.PacketFlow {
 		if pathEnd.ShouldRelayChannel(ChainChannelKey{ChainID: pathEnd.info.ChainID, CounterpartyChainID: counterpartyChainID, ChannelKey: ch}) {
 			if inSync && pathEnd.metrics != nil {
@@ -115,6 +119,11 @@ func (pathEnd *pathEndRuntime) mergeMessageCache(messageCache IBCMessagesCache, 
 				}
 			}
 			packetMessages[ch] = pmc
+			for eventType, pCache := range pmc {
+				for seq := range pCache {
+					pathEnd.messageCache.PacketState.UpdateState(ch, seq, eventType)
+				}
+			}
 		}
 	}
 	pathEnd.messageCache.PacketFlow.Merge(packetMessages)
